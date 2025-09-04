@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VibeCheck - Event Finder</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="background-overlay"></div>
+  
+  <header>
+    <h1>🎶 VibeCheck</h1>
+    <p>Paste your Spotify playlist or choose your preferences to discover clubbing events you’ll love</p>
+  </header>
+
+  <!-- Spotify Form -->
+  <section class="form-container">
+    <h2>📀 Find Events by Spotify Playlist</h2>
+    <form id="spotifyForm">
+      <input type="text" id="playlistUrl" placeholder="Paste your Spotify playlist URL" required>
+      <button type="submit">Find Events</button>
+    </form>
+    <div id="loading" class="loading-bars" style="display:none;">
+      <span></span><span></span><span></span><span></span><span></span>
+      <p>Finding events for you...</p>
+    </div>
+  </section>
+
+  <!-- Preferences Form -->
+  <section class="form-container">
+    <h2>🎲 Find Events by Preferences</h2>
+    <form id="preferencesForm">
+      <div class="form-grid">
+        
+        <div class="form-group">
+          <label for="budget">Budget:</label>
+          <select id="budget">
+            <option value="any">Any</option>
+            <option value="free">£0 (Free)</option>
+            <option value="0-10">£0 – £10</option>
+            <option value="10-30">£10 – £30</option>
+            <option value="30-50">£30 – £50</option>
+            <option value="50+">£50+</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="location">Location:</label>
+          <input type="text" id="location" placeholder="Enter city or postcode">
+        </div>
+
+        <div class="form-group genre-group">
+          <label>Genre:</label>
+          <div class="genre-pills">
+            <span data-value="house">House</span>
+            <span data-value="techno">Techno</span>
+            <span data-value="drumandbass">Drum & Bass</span>
+            <span data-value="hiphop">Hip-Hop</span>
+            <span data-value="rnb">R&B</span>
+            <span data-value="pop">Pop</span>
+            <span data-value="indie">Indie</span>
+            <span data-value="trance">Trance</span>
+          </div>
+          <input type="hidden" id="genre" name="genre">
+        </div>
+
+        <div class="form-group">
+          <label for="when">When:</label>
+          <select id="when">
+            <option value="any">Any time</option>
+            <option value="tonight">Tonight</option>
+            <option value="weekend">This Weekend</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit">Search Events</button>
+      </div>
+    </form>
+    <div id="loading-preferences" class="loading-bars" style="display:none;">
+      <span></span><span></span><span></span><span></span><span></span>
+      <p>Finding events for you...</p>
+    </div>
+  </section>
+
+  <!-- Results Grid -->
+  <section id="results"></section>
+
+  <footer>
+    <p>Built for ravers, powered by vibes ✨</p>
+  </footer>
+
+  <script>
+    // Genre pill selection handling
+    document.querySelectorAll(".genre-pills span").forEach(pill => {
+      pill.addEventListener("click", () => {
+        pill.classList.toggle("selected");
+        const selected = Array.from(document.querySelectorAll(".genre-pills .selected"))
+          .map(el => el.getAttribute("data-value"));
+        document.getElementById("genre").value = selected.join(",");
+      });
+    });
+  </script>
+
+  <script src="script.js"></script>
+</body>
+</html>
