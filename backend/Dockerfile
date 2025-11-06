@@ -13,8 +13,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of your backend code into the container
 COPY . .
 
-# Run the Playwright installer to get the browsers
-RUN playwright install --with-deps chromium
+#
+# The 'RUN playwright install' line has been REMOVED.
+# The base image already has the browsers installed.
+#
 
 # This command tells Render how to start your app
 # It runs Gunicorn on port 10000, pointing to your Flask app
