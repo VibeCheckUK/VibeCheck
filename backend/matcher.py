@@ -1,8 +1,9 @@
 from sentence_transformers import SentenceTransformer, util
 
-# Load a lightweight pre-trained model
-model = SentenceTransformer("all-MiniLM-L6-v2")
-
+# --- THIS IS THE FIX ---
+# 1. Don't load the model here. Set it to None.
+model = None
+# -----------------------
 
 def match_events_to_profile(events, profile):
     """
@@ -10,6 +11,18 @@ def match_events_to_profile(events, profile):
     - Removes duplicates BY TITLE
     - Returns all relevant events
     """
+    
+    # --- THIS IS THE FIX ---
+    # 2. "Lazy load" the model.
+    # Check if the model has been loaded yet.
+    global model
+    if model is None:
+        print("Loading SentenceTransformer model for the first time...")
+        # If not, load it now. This will only happen on the first request.
+        model = SentenceTransformer("all-MiniLM-L6-v2")
+        print("Model loaded successfully.")
+    # --- END OF FIX ---
+
     if not events:
         print("No events to match!")
         return []
@@ -22,35 +35,25 @@ def match_events_to_profile(events, profile):
     profile_embedding = model.encode(profile_text, convert_to_tensor=True)
 
     results = []
-    # --- THIS IS THE FIX ---
-    # We will check for titles we've already seen
     seen_titles = set()
-    # -----------------------
 
     for event in events:
-        # --- MODIFIED DEDUPLICATION ---
-        # Get the title first for deduplication
         title = event.get("title") or event.get("name") or ""
         if not title:
-            continue # Skip events with no title at all
+            continue
 
-        # Normalize the title to catch duplicates
         normalized_title = title.strip().lower()
         if normalized_title in seen_titles:
-            continue  # Skip duplicate title
+            continue
         seen_titles.add(normalized_title)
-        # --- END OF FIX ---
 
-        # Get other fields
         venue = event.get("venue") or ""
         description = event.get("description") or ""
         event_text = f"{title} {venue} {description}".strip().lower()
 
-        # ✅ Optional: genre filter (keep it if you want tighter results)
         if not any(genre in event_text for genre in genres):
             continue
 
-        # ✅ Semantic similarity
         event_embedding = model.encode(event_text, convert_to_tensor=True)
         similarity = float(util.cos_sim(profile_embedding, event_embedding))
 
@@ -59,10 +62,8 @@ def match_events_to_profile(events, profile):
             "score": similarity,
         })
 
-    # Sort by similarity (descending)
     results.sort(key=lambda x: x["score"], reverse=True)
 
-    # Return ALL matching events
     top_results = results
     print(f"Returning {len(top_results)} unique matching events (from {len(events)} total events)")
     return top_results
@@ -71,6 +72,7 @@ def match_events_to_profile(events, profile):
 def print_match_details(matches, limit=5):
     """Print detailed information about matches for debugging."""
     print(f"\n📊 Match Details (Top {limit}):")
+    # (Rest of this function is unchanged)
     for i, match in enumerate(matches[:limit]):
         event = match["event"]
         score = match["score"]
