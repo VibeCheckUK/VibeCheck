@@ -5,10 +5,13 @@ FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
 WORKDIR /app
 
 #
-# --- THIS IS THE FIX ---
-# Tell the 'sentence-transformers' library to use the writeable /tmp folder
-# for its model cache, instead of the read-only default.
+# --- THIS IS THE FIX (Part 1: Caching) ---
+# Force ALL known cache directories to the writeable /tmp folder
+# This is for sentence-transformers, huggingface_hub, etc.
 ENV TRANSFORMERS_CACHE=/tmp
+ENV HF_HOME=/tmp
+ENV HUGGINGFACE_HUB_CACHE=/tmp
+ENV SENTENCE_TRANSFORMERS_HOME=/tmp
 # --- END OF FIX ---
 #
 
@@ -21,5 +24,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of your backend code into the container
 COPY . .
 
-# This command tells Render how to start your app
-CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--workers", "2", "backend_app:app"]
+#
+# --- THIS IS THE FIX (Part 2: Memory) ---
+# Change '--workers 2' to '--workers 1'
+# This cuts the app's startup memory usage in half.
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--workers", "1", "backend_app:app"]
+# --- END OF FIX ---
