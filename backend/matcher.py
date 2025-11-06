@@ -4,11 +4,11 @@ from sentence_transformers import SentenceTransformer, util
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
-def match_events_to_profile(events, profile, top_n=10):
+def match_events_to_profile(events, profile):
     """
     Match events to a Spotify profile using SentenceTransformer embeddings.
-    - Removes duplicates
-    - Always return top_n most relevant events (no min threshold)
+    - Removes duplicates BY TITLE
+    - Returns all relevant events
     """
     if not events:
         print("No events to match!")
@@ -22,19 +22,26 @@ def match_events_to_profile(events, profile, top_n=10):
     profile_embedding = model.encode(profile_text, convert_to_tensor=True)
 
     results = []
-    seen_urls = set()
+    # --- THIS IS THE FIX ---
+    # We will check for titles we've already seen
+    seen_titles = set()
+    # -----------------------
 
     for event in events:
-        if not event or not event.get("title"):
-            continue
+        # --- MODIFIED DEDUPLICATION ---
+        # Get the title first for deduplication
+        title = event.get("title") or event.get("name") or ""
+        if not title:
+            continue # Skip events with no title at all
 
-        url = event.get("url")
-        if url in seen_urls:
-            continue  # Skip duplicates
-        seen_urls.add(url)
+        # Normalize the title to catch duplicates
+        normalized_title = title.strip().lower()
+        if normalized_title in seen_titles:
+            continue  # Skip duplicate title
+        seen_titles.add(normalized_title)
+        # --- END OF FIX ---
 
-        # Normalize fields to avoid NoneType errors
-        title = event.get("title") or ""
+        # Get other fields
         venue = event.get("venue") or ""
         description = event.get("description") or ""
         event_text = f"{title} {venue} {description}".strip().lower()
@@ -55,9 +62,9 @@ def match_events_to_profile(events, profile, top_n=10):
     # Sort by similarity (descending)
     results.sort(key=lambda x: x["score"], reverse=True)
 
-    # ✅ Return only the top N results
-    top_results = results[:top_n]
-    print(f"Returning top {len(top_results)} matching events (from {len(events)} total events)")
+    # Return ALL matching events
+    top_results = results
+    print(f"Returning {len(top_results)} unique matching events (from {len(events)} total events)")
     return top_results
 
 

@@ -1,0 +1,8 @@
+flask
+flask-cors
+playwright
+sentence-transformers
+requests
+python-dotenv
+aiohttp
+gunicorn

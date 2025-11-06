@@ -16,11 +16,31 @@ HEADERS = {
     )
 }
 
-# in-memory cache to avoid duplicate lookups
+# in-memory cache
 CACHE = {
     "event_ids": set(),
     "events": {}
 }
+
+def build_eventbrite_filters(budget, when):
+    params = []
+    
+    if when == "tonight":
+        params.append("date=today")
+    elif when == "weekend":
+        params.append("date=this_weekend")
+    elif when == "week":
+        params.append("date=this_week")
+    elif when == "month":
+        params.append("date=this_month")
+    
+    if budget == "free":
+        params.append("price=free")
+    
+    if not params:
+        return ""
+    
+    return "?" + "&".join(params)
 
 
 async def fetch(session, url, headers=None, return_json=False):
@@ -47,6 +67,12 @@ async def fetch_event_api(session, event_id):
 
     title = data.get("name", {}).get("text")
     start_date = data.get("start", {}).get("local")
+    
+    # --- 1. THIS IS THE FIX ---
+    # Get the 'is_free' boolean from the API
+    is_free = data.get("is_free", False) 
+    # --- END FIX ---
+
     venue = None
     event_url = data.get("url")
     venue_id = data.get("venue_id")
@@ -60,26 +86,32 @@ async def fetch_event_api(session, event_id):
         if venue_data:
             venue = venue_data.get("name")
 
-    event_info = {"title": title, "date": start_date, "venue": venue, "url": event_url}
+    # --- 2. THIS IS THE FIX ---
+    # Store 'is_free' in the event info
+    event_info = {"title": title, "date": start_date, "venue": venue, "url": event_url, "is_free": is_free}
     CACHE["events"][event_id] = event_info
     return event_info
 
 
-async def scrape_keyword(session, city, keyword, max_events_per_keyword=10, max_pages=1):
+async def scrape_keyword(session, city, keyword, max_events_per_keyword=10, max_pages=1, budget="any", when="any"):
     """Scrape a single keyword across multiple pages."""
     results = []
     keyword_url_part = quote(keyword.lower().replace(" ", "-"))
-    base_search_url = f"{BASE_URL}/d/united-kingdom--{city}/{keyword_url_part}/"
+    
+    filter_params = build_eventbrite_filters(budget, when)
+    
+    base_search_url = f"{BASE_URL}/d/united-kingdom--{city}/{keyword_url_part}/{filter_params}"
 
-    print(f"\n🔎 Searching Eventbrite for keyword: '{keyword}' in {city}")
+    print(f"\n🔎 Searching Eventbrite for keyword: '{keyword}' in {city} ({base_search_url})")
 
     for page in range(1, max_pages + 1):
-        page_url = f"{base_search_url}?page={page}"
+        page_param = f"&page={page}" if filter_params else f"?page={page}"
+        page_url = f"{base_search_url}{page_param}"
+        
         html = await fetch(session, page_url)
         if not html:
             break
 
-        # Extract event IDs
         event_ids = set()
         start = 0
         while True:
@@ -97,7 +129,6 @@ async def scrape_keyword(session, city, keyword, max_events_per_keyword=10, max_
         if not event_ids:
             break
 
-        # Fetch event details concurrently
         tasks = [
             fetch_event_api(session, eid)
             for eid in list(event_ids)[:max_events_per_keyword]
@@ -106,24 +137,30 @@ async def scrape_keyword(session, city, keyword, max_events_per_keyword=10, max_
 
         for r in details:
             if r:
+                # --- 3. THIS IS THE FIX ---
+                # Check the 'is_free' flag before adding the event
+                if budget == "free" and not r.get("is_free", False):
+                    print(f"   FILTERED (Not Free): {r['title']}")
+                    continue # Skip this event because user wants 'free' and it's not
+                # --- END FIX ---
+
                 results.append(r)
                 print(f"   ✅ {r['title']} | {r.get('date','TBA')} | {r.get('venue','TBA')}")
 
     return results
 
 
-async def scrape_eventbrite_async(city="london", keywords=None, max_events_per_keyword=10, max_pages=1):
+async def scrape_eventbrite_async(city="london", keywords=None, max_events_per_keyword=10, max_pages=1, budget="any", when="any"):
     if not keywords:
         return []
 
     async with aiohttp.ClientSession() as session:
         tasks = [
-            scrape_keyword(session, city, kw, max_events_per_keyword, max_pages)
+            scrape_keyword(session, city, kw, max_events_per_keyword, max_pages, budget, when)
             for kw in keywords
         ]
         results = await asyncio.gather(*tasks)
 
-    # flatten
     all_events = [event for sublist in results for event in sublist]
     print(f"\n🏁 Eventbrite scraping complete: {len(all_events)} unique events extracted")
     return all_events

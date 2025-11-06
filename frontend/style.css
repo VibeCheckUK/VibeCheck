@@ -129,12 +129,20 @@ button:hover {
   border-color: #1DB954;
 }
 
+/* ===== START OF FIX ===== */
+
 /* Equaliser-style Loading Bars */
 .loading-bars {
   margin-top: 20px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  /* 1. Change direction to row */
+  flex-direction: row;
+  /* 2. Add wrap so the text goes to the next line */
+  flex-wrap: wrap;
+  /* 3. Center the bars horizontally */
+  justify-content: center;
+  /* 4. Center the bars vertically */
+  align-items: center; 
 }
 .loading-bars span {
   display: inline-block;
@@ -159,7 +167,13 @@ button:hover {
   margin-top: 10px;
   color: #ccc;
   font-size: 0.9rem;
+  /* 5. Make text 100% width to force it to a new line */
+  width: 100%;
+  text-align: center;
 }
+
+/* ===== END OF FIX ===== */
+
 
 /* Results Grid */
 #results {
